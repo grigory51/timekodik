@@ -6,7 +6,9 @@ output/
 episode.toml
 /data/
 *.wav
+*.mp3
 *.pyc
+*.egg-info/
 __pycache__/
 .mypy_cache/
 .pytest_cache/

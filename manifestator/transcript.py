@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import re
 from pathlib import Path
 
 import click
@@ -79,6 +80,66 @@ def apply_transcript_edits(
         segment.model_copy(update={"text": edit.text.strip()})
         for segment, edit in zip(segments, edits.segments, strict=True)
     ]
+
+
+def merge_sentence_fragments(
+    segments: list[TranscriptSegment],
+) -> list[TranscriptSegment]:
+    merged: list[TranscriptSegment] = []
+    pending: TranscriptSegment | None = None
+    for segment in segments:
+        if pending is None:
+            pending = segment
+            continue
+
+        pending_text = pending.text.rstrip('»”"\')]}')
+        if (
+            pending.speaker != segment.speaker
+            or pending_text.endswith((".", "!", "?", "…"))
+        ):
+            merged.append(pending)
+            pending = segment
+            continue
+
+        sentence_end = re.search(r"[.!?…][»”\"')\]]*", segment.text)
+        if sentence_end is None:
+            pending = pending.model_copy(
+                update={
+                    "endSeconds": segment.endSeconds,
+                    "text": f"{pending.text.rstrip()} {segment.text.lstrip()}",
+                }
+            )
+            continue
+
+        boundary = round(
+            segment.startSeconds
+            + (segment.endSeconds - segment.startSeconds)
+            * sentence_end.end()
+            / len(segment.text),
+            3,
+        )
+        merged.append(
+            pending.model_copy(
+                update={
+                    "endSeconds": boundary,
+                    "text": (
+                        f"{pending.text.rstrip()} "
+                        f"{segment.text[:sentence_end.end()].lstrip()}"
+                    ),
+                }
+            )
+        )
+        remainder = segment.text[sentence_end.end() :].strip()
+        pending = (
+            segment.model_copy(
+                update={"startSeconds": boundary, "text": remainder}
+            )
+            if remainder
+            else None
+        )
+    if pending:
+        merged.append(pending)
+    return merged
 
 
 def load_chapters(config: EpisodeConfig) -> ChaptersDocument:

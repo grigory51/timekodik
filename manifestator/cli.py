@@ -21,8 +21,9 @@ from .audio import (
     prepare_chunks,
 )
 from .common import ROOT, atomic_json, codex_json, require_file, run
-from .config import EpisodeConfig, load_config
+from .config import EpisodeConfig, config_for_source, load_config
 from .debug import debug_path, write_debug_stage
+from .model import ensure_transcription_model
 from .models import (
     ChaptersDocument,
     TranscriptDocument,
@@ -34,6 +35,7 @@ from .transcript import (
     apply_transcript_edits,
     load_chapters,
     load_transcript,
+    merge_sentence_fragments,
     write_transcript_markdown,
 )
 
@@ -42,23 +44,42 @@ CLEAN_TRANSCRIPT_BATCH_SIZE = 50
 
 
 @click.command()
+@click.argument(
+    "source_path",
+    required=False,
+    type=click.Path(path_type=Path, exists=True),
+)
 @click.option(
     "--config",
     "config_path",
     type=click.Path(path_type=Path, dir_okay=False),
-    default=ROOT / "episode.toml",
-    show_default=True,
+    help="Использовать расширенный TOML-конфиг.",
 )
 @click.option("--force", is_flag=True, help="Пересобрать готовые результаты этапов.")
-def cli(config_path: Path, force: bool) -> None:
-    """Создать manifest интерактивного выпуска."""
-    config = load_config(config_path)
+def cli(source_path: Path | None, config_path: Path | None, force: bool) -> None:
+    """Создать manifest из аудиофайла или каталога с ролевыми дорожками."""
+    if source_path and config_path:
+        raise click.UsageError("Передайте SOURCE_PATH или --config, но не оба сразу")
+    if source_path:
+        config = config_for_source(source_path)
+    else:
+        config_path = config_path or ROOT / "episode.toml"
+        if not config_path.is_file():
+            raise click.UsageError("Передайте аудиофайл или каталог с дорожками")
+        config = load_config(config_path)
+    if source_path:
+        click.echo(f"Найдено дорожек: {len(config.tracks)}")
+        for track in config.tracks:
+            click.echo(f"  {track.name}: {track.file}")
     doctor(config)
     if not click.confirm("Проверка завершена. Продолжить?", default=True):
         return
-    mix(config, force)
-    if not click.confirm("Сведение завершено. Продолжить?", default=True):
-        return
+    if len(config.tracks) > 1:
+        mix(config, force)
+        if not click.confirm("Сведение завершено. Продолжить?", default=True):
+            return
+    else:
+        click.echo("Сведение не требуется: используется готовая аудиодорожка")
     transcribe(config, force)
     if not click.confirm("Транскрибация завершена. Продолжить?", default=True):
         return
@@ -76,11 +97,12 @@ def doctor(config: EpisodeConfig) -> None:
     for executable in ("ffmpeg", "ffprobe", "codex"):
         if shutil.which(executable) is None:
             raise click.ClickException(f"Не найден executable: {executable}")
-    require_file(config.transcription_model, "Модель транскрибации")
     for track in config.tracks:
         require_file(config.source_dir / track.file, "Дорожка")
     if find_spec("transcribe_cpp") is None:
         raise click.ClickException("Python binding transcribe_cpp не установлен")
+    ensure_transcription_model(config.transcription_model)
+    require_file(config.transcription_model, "Модель транскрибации")
     write_debug_stage(
         config,
         "doctor",
@@ -386,6 +408,7 @@ def summarize(config: EpisodeConfig, force: bool) -> None:
 def build_manifest(config: EpisodeConfig) -> None:
     """Собрать manifest и артефакты в один каталог."""
     transcript = load_transcript(config.clean_transcript_output)
+    transcript_segments = merge_sentence_fragments(transcript.segments)
     chapters = load_chapters(config)
     speakers = {track.speaker: {"name": track.name} for track in config.tracks}
     artifacts: list[dict[str, Any]] = []
@@ -409,7 +432,7 @@ def build_manifest(config: EpisodeConfig) -> None:
         "schemaVersion": 1,
         "speakers": speakers,
         "transcript": [
-            segment.model_dump(mode="json") for segment in transcript.segments
+            segment.model_dump(mode="json") for segment in transcript_segments
         ],
         "chapters": [
             chapter.model_dump(mode="json") for chapter in chapters.chapters

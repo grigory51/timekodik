@@ -1,13 +1,23 @@
 from __future__ import annotations
 
+import re
 import tomllib
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import BaseModel, Field, model_validator
+import click
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .common import ROOT
+from .model import default_model_path
 from .models import NonNegativeSeconds
+
+
+AUDIO_SUFFIXES = {".aac", ".flac", ".m4a", ".mp3", ".ogg", ".opus", ".wav"}
+TEAMSPEAK_TRACK_PATTERN = re.compile(
+    r"^(?:playback_)?(?P<speaker>.+?)(?:_\d+)?_"
+    r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.\d{6}$"
+)
 
 
 class TrackConfig(BaseModel):
@@ -32,13 +42,20 @@ class ArtifactConfig(BaseModel):
 
 
 class EpisodeConfig(BaseModel):
-    episode_id: Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$")]
+    episode_id: Annotated[str, Field(min_length=1)]
     content_start_seconds: NonNegativeSeconds = 0
     source_dir: Path
-    transcription_model: Path
+    transcription_model: Path = Field(default_factory=default_model_path)
     output_dir: Path
     tracks: list[TrackConfig]
     artifacts: list[ArtifactConfig] = []
+
+    @field_validator("episode_id")
+    @classmethod
+    def validate_episode_id(cls, value: str) -> str:
+        if value in {".", ".."} or any(character in value for character in "/\\\0"):
+            raise ValueError("episode_id must be a safe path component")
+        return value
 
     @property
     def audio_output(self) -> Path:
@@ -105,3 +122,51 @@ def load_config(path: Path) -> EpisodeConfig:
     with path.open("rb") as source:
         raw = tomllib.load(source)
     return EpisodeConfig.model_validate(raw).resolve_paths()
+
+
+def config_for_source(path: Path) -> EpisodeConfig:
+    source = path.expanduser().resolve()
+    if source.is_file():
+        episode_id = source.stem
+        source_dir = source.parent
+        tracks = [TrackConfig(file=source.name, speaker="speaker", name="Спикер")]
+    else:
+        episode_id = source.name
+        source_dir = source
+        audio_files = sorted(
+            (
+                item
+                for item in source.iterdir()
+                if item.is_file() and item.suffix.lower() in AUDIO_SUFFIXES
+            ),
+            key=lambda item: item.name.casefold(),
+        )
+        if not audio_files:
+            raise click.ClickException(f"В каталоге нет аудиофайлов: {source}")
+
+        tracks = []
+        speakers: set[str] = set()
+        for audio_file in audio_files:
+            match = TEAMSPEAK_TRACK_PATTERN.fullmatch(audio_file.stem)
+            name = match.group("speaker") if match else audio_file.stem
+            base_speaker = re.sub(r"[^\w.-]+", "-", name).strip("-.") or "speaker"
+            speaker = base_speaker
+            suffix = 2
+            while speaker in speakers:
+                speaker = f"{base_speaker}-{suffix}"
+                suffix += 1
+            speakers.add(speaker)
+            tracks.append(
+                TrackConfig(
+                    file=audio_file.name,
+                    speaker=speaker,
+                    name=name.replace("_", " "),
+                )
+            )
+
+    return EpisodeConfig(
+        episode_id=episode_id,
+        source_dir=source_dir,
+        output_dir=Path.cwd() / "output" / episode_id,
+        tracks=tracks,
+    ).resolve_paths()

@@ -46,6 +46,10 @@ def track_timestamp(filename: str) -> datetime:
 
 
 def track_offsets(config: EpisodeConfig) -> dict[str, float]:
+    if len(config.tracks) == 1 or not all(
+        TIMESTAMP_PATTERN.search(track.file) for track in config.tracks
+    ):
+        return {track.file: 0.0 for track in config.tracks}
     timestamps = {track.file: track_timestamp(track.file) for track in config.tracks}
     origin = min(timestamps.values())
     return {

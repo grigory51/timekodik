@@ -1,7 +1,6 @@
 episode_id = "example"
 content_start_seconds = 0.0
 source_dir = "/path/to/teamspeak-recording"
-transcription_model = "/path/to/transcription-model.gguf"
 output_dir = "output/example"
 
 [[tracks]]
