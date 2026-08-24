@@ -12,7 +12,6 @@ import { seekAndPlay } from "../src/media.ts";
 
 const manifest = {
   schemaVersion: 1,
-  episode: { id: "episode", audioUrl: "episode.mp3", durationSeconds: 100 },
   speakers: { host: { name: "Host" } },
   transcript: [
     { id: "s1", speaker: "host", startSeconds: 0, endSeconds: 10, text: "Text" },
@@ -42,14 +41,12 @@ test("manifest file URLs resolve relative to the manifest", () => {
   const resolved = resolveManifestUrls(
     parseManifest({
       ...manifest,
-      episode: { ...manifest.episode, audioUrl: "../../../assets/episode.mp3" },
       artifacts: [
         { ...manifest.artifacts[0], source: { url: "terminal.cast" } },
       ],
     }),
     "http://127.0.0.1:8000/addon/data/episode/manifest.json",
   );
-  assert.equal(resolved.episode.audioUrl, "http://127.0.0.1:8000/assets/episode.mp3");
   assert.equal(
     resolved.artifacts[0]?.source?.url,
     "http://127.0.0.1:8000/addon/data/episode/terminal.cast",

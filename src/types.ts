@@ -1,9 +1,3 @@
-export interface EpisodeInfo {
-  id: string;
-  audioUrl: string;
-  durationSeconds: number;
-}
-
 export interface Speaker {
   name: string;
 }
@@ -41,7 +35,6 @@ export interface Artifact {
 
 export interface EpisodeManifest {
   schemaVersion: 1;
-  episode: EpisodeInfo;
   speakers: Record<string, Speaker>;
   transcript: TranscriptSegment[];
   chapters: Chapter[];

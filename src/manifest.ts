@@ -71,16 +71,6 @@ export function parseManifest(value: unknown): EpisodeManifest {
     throw new Error("Manifest должен иметь schemaVersion: 1");
   }
 
-  const episode = value.episode;
-  if (
-    !isRecord(episode) ||
-    !isString(episode.id) ||
-    typeof episode.audioUrl !== "string" ||
-    !isSecond(episode.durationSeconds)
-  ) {
-    throw new Error("Manifest содержит некорректное описание выпуска");
-  }
-
   if (
     !isRecord(value.speakers) ||
     !Array.isArray(value.transcript) ||
@@ -108,10 +98,6 @@ export function resolveManifestUrls(
 ): EpisodeManifest {
   return {
     ...manifest,
-    episode: {
-      ...manifest.episode,
-      audioUrl: new URL(manifest.episode.audioUrl, manifestUrl).href,
-    },
     artifacts: manifest.artifacts.map((artifact) => ({
       ...artifact,
       source: artifact.source?.url

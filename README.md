@@ -121,7 +121,6 @@ uv run manifestator
 ```text
 output/example/
 ├── manifest.json
-├── audio.mp3
 └── artifacts/
     └── terminal-session.cast
 ```

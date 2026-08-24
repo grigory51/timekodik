@@ -384,11 +384,9 @@ def summarize(config: EpisodeConfig, force: bool) -> None:
 
 
 def build_manifest(config: EpisodeConfig) -> None:
-    """Собрать manifest, аудио и артефакты в один каталог."""
-    require_file(config.audio_output, "Сведённое аудио")
+    """Собрать manifest и артефакты в один каталог."""
     transcript = load_transcript(config.clean_transcript_output)
     chapters = load_chapters(config)
-    duration = ffprobe_duration(config.audio_output)
     speakers = {track.speaker: {"name": track.name} for track in config.tracks}
     artifacts: list[dict[str, Any]] = []
     artifacts_dir = config.output_dir / "artifacts"
@@ -407,15 +405,8 @@ def build_manifest(config: EpisodeConfig) -> None:
             "title": artifact.title,
         }
         artifacts.append({**common, "source": {"url": f"artifacts/{filename}"}})
-    audio_path = config.output_dir / "audio.mp3"
-    shutil.copy2(config.audio_output, audio_path)
     manifest: dict[str, Any] = {
         "schemaVersion": 1,
-        "episode": {
-            "id": config.episode_id,
-            "audioUrl": audio_path.name,
-            "durationSeconds": round(duration, 3),
-        },
         "speakers": speakers,
         "transcript": [
             segment.model_dump(mode="json") for segment in transcript.segments
@@ -436,7 +427,6 @@ def build_manifest(config: EpisodeConfig) -> None:
             "artifacts": len(manifest["artifacts"]),
             "output": debug_path(config.output_dir),
             "manifest": debug_path(config.manifest_output),
-            "audio": debug_path(audio_path),
         },
     )
     click.echo(f"Готово: {config.output_dir}")
