@@ -12,11 +12,11 @@ Standalone TypeScript-библиотека добавляет к нативно�
 ```html
 <link
   rel="stylesheet"
-  href="https://cdn.jsdelivr.net/npm/timekodik@0.1.0/dist/addon/timekodik.css"
+  href="https://cdn.jsdelivr.net/npm/@grigory51/timekodik@0.1.1/dist/addon/timekodik.css"
 >
 <script
   defer
-  src="https://cdn.jsdelivr.net/npm/timekodik@0.1.0/dist/addon/timekodik.js"
+  src="https://cdn.jsdelivr.net/npm/@grigory51/timekodik@0.1.1/dist/addon/timekodik.js"
   data-audio="#audio-player"
   data-manifest="https://cdn.example/episodes/example/manifest.json"
 ></script>

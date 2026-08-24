@@ -1,5 +1,5 @@
 {
-  "name": "timekodik",
+  "name": "@grigory51/timekodik",
   "version": "0.1.0",
   "description": "Кликабельные таймкоды, транскрипт и синхронные артефакты для HTML audio",
   "type": "module",
