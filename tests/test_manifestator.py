@@ -1,10 +1,13 @@
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import click
+from click.testing import CliRunner
 from pydantic import ValidationError
 
 from manifestator.audio import parse_loudness, split_speech
+from manifestator.cli import cli
 from manifestator.config import EpisodeConfig, load_config
 from manifestator.models import (
     TranscriptDocument,
@@ -16,6 +19,28 @@ from manifestator.transcript import apply_transcript_edits, trim_transcript
 
 
 class ManifestatorTest(unittest.TestCase):
+    def test_cli_runs_all_stages_after_confirmation(self) -> None:
+        config = object()
+        with (
+            patch("manifestator.cli.load_config", return_value=config),
+            patch("manifestator.cli.doctor") as doctor,
+            patch("manifestator.cli.mix") as mix,
+            patch("manifestator.cli.transcribe") as transcribe,
+            patch("manifestator.cli.clean_transcript") as clean_transcript,
+            patch("manifestator.cli.summarize") as summarize,
+            patch("manifestator.cli.build_manifest") as build_manifest,
+        ):
+            result = CliRunner().invoke(cli, input="y\ny\ny\ny\ny\n")
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertEqual(result.output.count("Продолжить?"), 5)
+        doctor.assert_called_once_with(config)
+        mix.assert_called_once_with(config, False)
+        transcribe.assert_called_once_with(config, False)
+        clean_transcript.assert_called_once_with(config, False)
+        summarize.assert_called_once_with(config, False)
+        build_manifest.assert_called_once_with(config)
+
     def test_audio_helpers(self) -> None:
         self.assertEqual(
             split_speech([(1.0, 51.0)]),

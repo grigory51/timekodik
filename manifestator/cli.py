@@ -41,7 +41,7 @@ from .transcript import (
 CLEAN_TRANSCRIPT_BATCH_SIZE = 50
 
 
-@click.group()
+@click.command()
 @click.option(
     "--config",
     "config_path",
@@ -49,14 +49,28 @@ CLEAN_TRANSCRIPT_BATCH_SIZE = 50
     default=ROOT / "episode.toml",
     show_default=True,
 )
-@click.pass_context
-def cli(context: click.Context, config_path: Path) -> None:
-    """Создание manifest интерактивного выпуска."""
-    context.obj = load_config(config_path)
+@click.option("--force", is_flag=True, help="Пересобрать готовые результаты этапов.")
+def cli(config_path: Path, force: bool) -> None:
+    """Создать manifest интерактивного выпуска."""
+    config = load_config(config_path)
+    doctor(config)
+    if not click.confirm("Проверка завершена. Продолжить?", default=True):
+        return
+    mix(config, force)
+    if not click.confirm("Сведение завершено. Продолжить?", default=True):
+        return
+    transcribe(config, force)
+    if not click.confirm("Транскрибация завершена. Продолжить?", default=True):
+        return
+    clean_transcript(config, force)
+    if not click.confirm("Очистка транскрипта завершена. Продолжить?", default=True):
+        return
+    summarize(config, force)
+    if not click.confirm("Таймкоды готовы. Продолжить?", default=True):
+        return
+    build_manifest(config)
 
 
-@cli.command()
-@click.pass_obj
 def doctor(config: EpisodeConfig) -> None:
     """Проверить локальные инструменты и исходные файлы."""
     for executable in ("ffmpeg", "ffprobe", "codex"):
@@ -82,15 +96,11 @@ def doctor(config: EpisodeConfig) -> None:
     click.echo("Исходные дорожки и модель найдены")
 
 
-@cli.command()
-@click.option("--force", is_flag=True, help="Перезаписать существующий MP3.")
-@click.pass_obj
 def mix(config: EpisodeConfig, force: bool) -> None:
     """Свести TeamSpeak-дорожки в нормализованный mono MP3."""
     if config.audio_output.exists() and not force:
-        raise click.ClickException(
-            f"Файл уже существует: {config.audio_output}; используйте --force"
-        )
+        click.echo(f"Уже готово: {config.audio_output}")
+        return
     for track in config.tracks:
         require_file(config.source_dir / track.file, "Дорожка")
 
@@ -150,11 +160,11 @@ def mix(config: EpisodeConfig, force: bool) -> None:
     click.echo(f"Готово: {config.audio_output}")
 
 
-@cli.command()
-@click.option("--force", is_flag=True, help="Пересоздать WAV-фрагменты.")
-@click.pass_obj
 def transcribe(config: EpisodeConfig, force: bool) -> None:
     """Локально транскрибировать роли через transcribe.cpp."""
+    if config.transcript_output.exists() and not force:
+        click.echo(f"Уже готово: {config.transcript_output}")
+        return
     require_file(config.transcription_model, "Модель транскрибации")
     chunks = prepare_chunks(config, force)
     if not chunks:
@@ -230,15 +240,11 @@ def transcribe(config: EpisodeConfig, force: bool) -> None:
     click.echo(f"Готово: {len(segments)} сегментов")
 
 
-@cli.command("clean-transcript")
-@click.option("--force", is_flag=True, help="Перезаписать очищенный транскрипт.")
-@click.pass_obj
 def clean_transcript(config: EpisodeConfig, force: bool) -> None:
     """Исправить ошибки STT и убрать речевой мусор через Codex Luna."""
     if config.clean_transcript_output.exists() and not force:
-        raise click.ClickException(
-            f"Файл уже существует: {config.clean_transcript_output}; используйте --force"
-        )
+        click.echo(f"Уже готово: {config.clean_transcript_output}")
+        return
     transcript = load_transcript(config.transcript_output)
     schema = ROOT / "schemas" / "transcript-edits.schema.json"
     checkpoint_dir = ROOT / "build" / "clean-transcript" / config.episode_id
@@ -332,10 +338,11 @@ def clean_transcript(config: EpisodeConfig, force: bool) -> None:
     click.echo(f"Готово: {config.clean_transcript_output}")
 
 
-@cli.command()
-@click.pass_obj
-def summarize(config: EpisodeConfig) -> None:
+def summarize(config: EpisodeConfig, force: bool) -> None:
     """Построить темы и таймкоды через Codex Luna."""
+    if config.chapters_output.exists() and not force:
+        click.echo(f"Уже готово: {config.chapters_output}")
+        return
     transcript = load_transcript(config.clean_transcript_output)
     schema = ROOT / "schemas" / "chapters.schema.json"
     prompt = (
@@ -376,8 +383,6 @@ def summarize(config: EpisodeConfig) -> None:
     click.echo(f"Готово: {config.chapters_output}")
 
 
-@cli.command("build-manifest")
-@click.pass_obj
 def build_manifest(config: EpisodeConfig) -> None:
     """Собрать manifest, аудио и артефакты в один каталог."""
     require_file(config.audio_output, "Сведённое аудио")
