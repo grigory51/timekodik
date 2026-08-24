@@ -1,0 +1,32 @@
+{
+  "name": "timekodik",
+  "version": "0.1.0",
+  "description": "Кликабельные таймкоды, транскрипт и синхронные артефакты для HTML audio",
+  "type": "module",
+  "browser": "dist/addon/timekodik.js",
+  "jsdelivr": "dist/addon/timekodik.js",
+  "style": "dist/addon/timekodik.css",
+  "files": [
+    "dist/addon/timekodik.js",
+    "dist/addon/timekodik.css"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/grigory51/timekodik.git"
+  },
+  "homepage": "https://github.com/grigory51/timekodik#readme",
+  "bugs": {
+    "url": "https://github.com/grigory51/timekodik/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vite build",
+    "check": "tsc --noEmit && npm run build && node --test tests/timekodik.test.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vite": "^7.1.3"
+  }
+}

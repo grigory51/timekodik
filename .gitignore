@@ -1,0 +1,14 @@
+node_modules/
+.venv/
+build/
+dist/
+output/
+episode.toml
+/data/
+*.wav
+*.pyc
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.DS_Store
+.playwright-mcp/

@@ -1,0 +1,17 @@
+[project]
+name = "timekodik"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "click>=8.2,<9",
+  "pydantic>=2.11,<3",
+  "transcribe-cpp @ https://github.com/handy-computer/transcribe.cpp/releases/download/v0.2.1/transcribe_cpp-0.2.1-py3-none-any.whl",
+]
+
+[dependency-groups]
+dev = ["mypy>=1.17,<2"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["manifestator"]

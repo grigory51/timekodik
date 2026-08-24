@@ -1,0 +1,23 @@
+episode_id = "example"
+content_start_seconds = 0.0
+source_dir = "/path/to/teamspeak-recording"
+transcription_model = "/path/to/transcription-model.gguf"
+output_dir = "output/example"
+
+[[tracks]]
+file = "capture.wav"
+speaker = "guest"
+name = "Гость"
+
+[[tracks]]
+file = "playback_host.wav"
+speaker = "host"
+name = "Ведущий"
+
+[[artifacts]]
+id = "terminal-session"
+type = "asciinema"
+title = "Терминальная сессия"
+start_seconds = 120.0
+end_seconds = 150.0
+local_source = "data/terminal.cast"
