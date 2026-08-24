@@ -60,14 +60,6 @@ function autoInit(): void {
     return;
   }
 
-  const stylesheet = document.createElement("link");
-  stylesheet.rel = "stylesheet";
-  stylesheet.href = new URL("timekodik.css", embedScript.src).href;
-  stylesheet.dataset.timekodikStyles = "";
-  if (!document.querySelector("link[data-timekodik-styles]")) {
-    document.head.append(stylesheet);
-  }
-
   let options: ReturnType<typeof readEmbedOptions>;
   try {
     options = readEmbedOptions(embedScript.dataset);

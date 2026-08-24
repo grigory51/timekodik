@@ -7,9 +7,13 @@ Standalone TypeScript-библиотека добавляет к нативно�
 
 ## Установка
 
-Опубликуйте manifest выпуска и вставьте один тег:
+Опубликуйте manifest выпуска, подключите стили и script:
 
 ```html
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/timekodik@0.1.0/dist/addon/timekodik.css"
+>
 <script
   defer
   src="https://cdn.jsdelivr.net/npm/timekodik@0.1.0/dist/addon/timekodik.js"
@@ -18,8 +22,32 @@ Standalone TypeScript-библиотека добавляет к нативно�
 ></script>
 ```
 
-Библиотека сама загрузит лежащий рядом `timekodik.css` и вставит интерфейс сразу
-после `<audio>`. `data-after=".audio-block"` меняет точку вставки.
+Библиотека вставит интерфейс сразу после `<audio>`. `data-after=".audio-block"`
+меняет точку вставки.
+
+## Свои стили
+
+Чтобы оформить виджет под свой сайт, не подключайте `timekodik.css` и определите
+нужные стили самостоятельно. Библиотека никогда не добавляет свой CSS в страницу.
+
+Публичные классы разметки:
+
+- `.timekodik` — внешний контейнер;
+- `.pa-widget` — корень виджета;
+- `.pa-widget__chapters`, `.pa-widget__chapter-button` — таймкоды;
+- `.pa-widget__transcript`, `.pa-widget__transcript-list`, `.pa-widget__transcript-row`, `.pa-widget__time-button` — транскрипт;
+- `.pa-widget__artifacts`, `.pa-widget__artifact-cards`, `.pa-widget__artifact-card` — артефакты;
+- `.pa-widget__dialog`, `.pa-widget__dialog-close`, `.pa-widget__renderer` — окно артефакта;
+- `.pa-widget__error` — сообщение об ошибке.
+
+Активная глава и активная строка транскрипта получают `data-active="true"`:
+
+```css
+.pa-widget__chapters li[data-active="true"] .pa-widget__chapter-button,
+.pa-widget__transcript-row[data-active="true"] {
+  /* Текущий фрагмент */
+}
+```
 
 ## API библиотеки
 
@@ -55,7 +83,7 @@ npm run check
 Результат:
 
 - `dist/addon/timekodik.js` — standalone IIFE;
-- `dist/addon/timekodik.css` — стили, которые IIFE подключает автоматически.
+- `dist/addon/timekodik.css` — необязательные стандартные стили.
 
 ## Manifestator
 
