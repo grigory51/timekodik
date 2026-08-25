@@ -20,6 +20,7 @@ export interface Chapter {
 
 export interface ArtifactSource {
   url?: string;
+  urls?: string[];
   data?: string;
 }
 
@@ -71,26 +72,5 @@ export interface InitOptions {
 }
 
 export interface PodcastArtifactsInstance {
-  destroy(): void;
-}
-
-export interface ManifestatorDebugStage {
-  schemaVersion: 1;
-  episodeId: string;
-  stage: string;
-  label: string;
-  status: "complete" | "pending";
-  generatedAt?: string;
-  data?: Record<string, unknown>;
-}
-
-export interface ManifestatorDebugReport {
-  schemaVersion: 1;
-  episodeId: string;
-  stages: ManifestatorDebugStage[];
-}
-
-export interface ManifestatorDebugInstance {
-  open(): void;
   destroy(): void;
 }

@@ -1,26 +1,28 @@
-import "./styles.css";
+import "./assets/styles.css";
 
-import { asciinemaRenderer } from "./asciinema-renderer";
-import { mountWidget } from "./core";
-import {
-  mountManifestatorInspector,
-  parseManifestatorDebug,
-} from "./debug-inspector";
-import { readEmbedOptions } from "./embed";
+import { readEmbedOptions } from "./core/embed";
 import {
   activeInterval,
   parseManifest,
   resolveManifestUrls,
-} from "./manifest";
+} from "./core/manifest";
 import type {
   ArtifactRenderer,
   InitOptions,
   MountOptions,
   PodcastArtifactsInstance,
-} from "./types";
+} from "./core/types";
+import { mountWidget } from "./core/widget";
+import {
+  mountManifestatorInspector,
+  parseManifestatorDebug,
+} from "./debug/inspector";
+import { asciinemaRenderer } from "./renderers/asciinema";
+import { galleryRenderer } from "./renderers/gallery";
 
 const renderers = new Map<string, ArtifactRenderer>([
   ["asciinema", asciinemaRenderer],
+  ["gallery", galleryRenderer],
 ]);
 const embedScript =
   typeof document === "undefined"
@@ -99,4 +101,5 @@ export {
   readEmbedOptions,
   resolveManifestUrls,
 };
-export type * from "./types";
+export type * from "./core/types";
+export type * from "./debug/types";

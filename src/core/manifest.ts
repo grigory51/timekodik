@@ -57,12 +57,21 @@ function isArtifact(value: unknown): value is Artifact {
   }
 
   if (value.source === undefined) {
-    return true;
+    return value.type !== "gallery";
   }
 
+  if (!isRecord(value.source)) {
+    return false;
+  }
+  const urls = value.source.urls;
+  const hasUrls =
+    Array.isArray(urls) && urls.length > 0 && urls.every(isString);
   return (
-    isRecord(value.source) &&
-    (isString(value.source.url) || isString(value.source.data))
+    (value.source.url === undefined || isString(value.source.url)) &&
+    (value.source.data === undefined || isString(value.source.data)) &&
+    (urls === undefined || hasUrls) &&
+    (value.type !== "gallery" || hasUrls) &&
+    (isString(value.source.url) || isString(value.source.data) || hasUrls)
   );
 }
 
@@ -100,12 +109,21 @@ export function resolveManifestUrls(
     ...manifest,
     artifacts: manifest.artifacts.map((artifact) => ({
       ...artifact,
-      source: artifact.source?.url
+      source: artifact.source
         ? {
             ...artifact.source,
-            url: new URL(artifact.source.url, manifestUrl).href,
+            ...(artifact.source.url
+              ? { url: new URL(artifact.source.url, manifestUrl).href }
+              : {}),
+            ...(artifact.source.urls
+              ? {
+                  urls: artifact.source.urls.map(
+                    (url) => new URL(url, manifestUrl).href,
+                  ),
+                }
+              : {}),
           }
-        : artifact.source,
+        : undefined,
     })),
   };
 }

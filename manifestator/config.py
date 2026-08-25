@@ -32,12 +32,22 @@ class ArtifactConfig(BaseModel):
     title: Annotated[str, Field(min_length=1)]
     start_seconds: NonNegativeSeconds
     end_seconds: NonNegativeSeconds
-    local_source: Path
+    local_source: Path | None = None
+    local_sources: list[Path] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_interval(self) -> ArtifactConfig:
         if self.end_seconds < self.start_seconds:
             raise ValueError("end_seconds must be greater than or equal to start_seconds")
+        if self.local_source is not None and self.local_sources:
+            raise ValueError("use either local_source or local_sources")
+        if self.local_source is None and not self.local_sources:
+            raise ValueError("local_source or local_sources is required")
+        if self.type == "gallery" and self.local_source is not None:
+            self.local_sources = [self.local_source]
+            self.local_source = None
+        elif self.type != "gallery" and self.local_sources:
+            raise ValueError("local_sources is supported only for gallery artifacts")
         return self
 
 
@@ -107,9 +117,18 @@ class EpisodeConfig(BaseModel):
                         update={
                             "local_source": (
                                 artifact.local_source.expanduser()
-                                if artifact.local_source.is_absolute()
+                                if artifact.local_source is not None
+                                and artifact.local_source.is_absolute()
                                 else ROOT / artifact.local_source
-                            )
+                                if artifact.local_source is not None
+                                else None
+                            ),
+                            "local_sources": [
+                                source.expanduser()
+                                if source.is_absolute()
+                                else ROOT / source
+                                for source in artifact.local_sources
+                            ],
                         }
                     )
                     for artifact in self.artifacts

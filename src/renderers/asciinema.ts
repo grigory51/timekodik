@@ -1,4 +1,4 @@
-import type { ArtifactRenderer, RendererInstance } from "./types";
+import type { ArtifactRenderer, RendererInstance } from "../core/types";
 
 const CDN_BASE =
   "https://cdn.jsdelivr.net/npm/asciinema-player@3.17.0/dist/bundle";

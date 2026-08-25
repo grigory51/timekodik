@@ -5,10 +5,10 @@ import {
   activeInterval,
   parseManifest,
   resolveManifestUrls,
-} from "../src/manifest.ts";
-import { parseManifestatorDebug } from "../src/debug-inspector.ts";
-import { readEmbedOptions } from "../src/embed.ts";
-import { seekAndPlay } from "../src/media.ts";
+} from "../src/core/manifest.ts";
+import { readEmbedOptions } from "../src/core/embed.ts";
+import { seekAndPlay } from "../src/core/media.ts";
+import { parseManifestatorDebug } from "../src/debug/inspector.ts";
 
 const manifest = {
   schemaVersion: 1,
@@ -50,6 +50,34 @@ test("manifest file URLs resolve relative to the manifest", () => {
   assert.equal(
     resolved.artifacts[0]?.source?.url,
     "http://127.0.0.1:8000/addon/data/episode/terminal.cast",
+  );
+});
+
+test("gallery image URLs resolve relative to the manifest", () => {
+  const resolved = resolveManifestUrls(
+    parseManifest({
+      ...manifest,
+      artifacts: [
+        {
+          ...manifest.artifacts[0],
+          type: "gallery",
+          source: { urls: ["photos/one.jpg", "photos/two.jpg"] },
+        },
+      ],
+    }),
+    "http://127.0.0.1:8000/episode/manifest.json",
+  );
+  assert.deepEqual(resolved.artifacts[0]?.source?.urls, [
+    "http://127.0.0.1:8000/episode/photos/one.jpg",
+    "http://127.0.0.1:8000/episode/photos/two.jpg",
+  ]);
+  assert.throws(
+    () =>
+      parseManifest({
+        ...manifest,
+        artifacts: [{ ...manifest.artifacts[0], type: "gallery", source: { urls: [] } }],
+      }),
+    /временные данные/,
   );
 });
 

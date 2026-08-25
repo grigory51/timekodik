@@ -20,3 +20,11 @@ title = "Терминальная сессия"
 start_seconds = 120.0
 end_seconds = 150.0
 local_source = "data/terminal.cast"
+
+[[artifacts]]
+id = "photos"
+type = "gallery"
+title = "Фотографии"
+start_seconds = 180.0
+end_seconds = 210.0
+local_sources = ["data/photo-1.jpg", "data/photo-2.jpg"]

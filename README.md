@@ -38,6 +38,7 @@ Standalone TypeScript-библиотека добавляет к нативно�
 - `.pa-widget__transcript`, `.pa-widget__transcript-list`, `.pa-widget__transcript-row`, `.pa-widget__time-button` — транскрипт;
 - `.pa-widget__artifacts`, `.pa-widget__artifact-cards`, `.pa-widget__artifact-card` — артефакты;
 - `.pa-widget__dialog`, `.pa-widget__dialog-close`, `.pa-widget__renderer` — окно артефакта;
+- `.pa-gallery`, `.pa-gallery img`, `.pa-gallery figcaption` — галерея;
 - `.pa-widget__error` — сообщение об ошибке.
 
 Активная глава и активная строка транскрипта получают `data-active="true"`:
@@ -72,6 +73,16 @@ Timekodik.registerRenderer("diagram", ({ artifact, container, media }) => ({
 Renderer `asciinema` при первом открытии артефакта загружает standalone player и
 его CSS с jsDelivr. Podcast audio остаётся master clock; терминал следует за
 `play`, `pause` и `seek` основного плеера.
+
+Renderer `gallery` показывает одно изображение без элементов управления, а для
+нескольких изображений добавляет листалку. В manifest изображения задаются так:
+
+```json
+{
+  "type": "gallery",
+  "source": { "urls": ["photos/1.jpg", "photos/2.jpg"] }
+}
+```
 
 ## Сборка frontend
 
@@ -135,7 +146,9 @@ uv run manifestator --config episode.toml
 output/example/
 ├── manifest.json
 └── artifacts/
-    └── terminal-session.cast
+    ├── terminal-session.cast
+    ├── photos-1.jpg
+    └── photos-2.jpg
 ```
 
 Промежуточные аудио и JSON сохраняются автоматически в `build/`; задавать пути

@@ -295,23 +295,41 @@ source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "pydantic" },
+    { name = "tqdm" },
     { name = "transcribe-cpp" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "mypy" },
+    { name = "types-tqdm" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.2,<9" },
     { name = "pydantic", specifier = ">=2.11,<3" },
+    { name = "tqdm", specifier = ">=4.67,<5" },
     { name = "transcribe-cpp", url = "https://github.com/handy-computer/transcribe.cpp/releases/download/v0.2.1/transcribe_cpp-0.2.1-py3-none-any.whl" },
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "mypy", specifier = ">=1.17,<2" }]
+dev = [
+    { name = "mypy", specifier = ">=1.17,<2" },
+    { name = "types-tqdm", specifier = ">=4.67,<5" },
+]
+
+[[package]]
+name = "tqdm"
+version = "4.70.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/21/3b/6c24bec5be5e743ffd99576daa5cc077722fc7d5bbc00bd133fa0c698dc6/tqdm-4.70.0.tar.gz", hash = "sha256:55b0b0dbd97462d06ebee91e4dac24ed4d4702be82b24f07e6c1d27e08cea220", size = 795438, upload-time = "2026-07-27T11:33:15.271Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f9/1c/01bfd571a64e7f270e6bab5e33777debe0edc56759233ce84f27dec92d14/tqdm-4.70.0-py3-none-any.whl", hash = "sha256:7f585706bfddbdebf89daac705b2dfcc16890130727d3197ca62c732b4310953", size = 80184, upload-time = "2026-07-27T11:33:13.167Z" },
+]
 
 [[package]]
 name = "transcribe-cpp"
@@ -344,6 +362,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/fc/a2/bf8b31460e819926f086ae1a0080f92e8d6668db235750fddbc3d758f7a3/transcribe_cpp_native-0.2.1-py3-none-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:3b040871b320f8f50f317dc43d7d96ff4f6c6edc4cdfddb5f03656ab246b1555", size = 20623532, upload-time = "2026-08-20T07:03:49.09Z" },
     { url = "https://files.pythonhosted.org/packages/95/77/be75a4665e0825ebb825c07c404be26d6e89b21d3e75e638650fe71fbf35/transcribe_cpp_native-0.2.1-py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:626c83b8a445c483d1ad6739dc6e9ce5c25c615d573485293612dcdd5921f797", size = 24329630, upload-time = "2026-08-20T07:03:52.15Z" },
     { url = "https://files.pythonhosted.org/packages/0d/4e/1eb9ceb47cf22183d2ade8c11dd0764275896e0d57ec9e27210d6a744502/transcribe_cpp_native-0.2.1-py3-none-win_amd64.whl", hash = "sha256:753f920e10066e7245e5f00c4f99144bed9a54acf72bf3555ed832418fa9471d", size = 20387884, upload-time = "2026-08-20T07:03:55.585Z" },
+]
+
+[[package]]
+name = "types-tqdm"
+version = "4.70.0.20260805"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/41/284465d9bb5e657a1a4b17a4addf8800bbfad3d2e903f5a1a4d5bd10dd53/types_tqdm-4.70.0.20260805.tar.gz", hash = "sha256:569efd0fd8b2a460e6e6548634ec253c1362ed8907f8b0daacf0a07eab204a26", size = 19115, upload-time = "2026-08-05T04:52:04.435Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/97/92/acbd53e79df923bca3881192558a3bc73a47b8b7bd6c94b3649ae45e8094/types_tqdm-4.70.0.20260805-py3-none-any.whl", hash = "sha256:c83113470a46caee2d045428554714f3c314be94eb4ed4030aaa8a8ab21b830c", size = 25135, upload-time = "2026-08-05T04:52:03.166Z" },
 ]
 
 [[package]]

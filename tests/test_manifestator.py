@@ -230,7 +230,11 @@ class ManifestatorTest(unittest.TestCase):
 
     def test_episode_id_is_safe_path_component(self) -> None:
         config = load_config(Path(__file__).parent.parent / "episode.example.toml")
-        self.assertTrue(config.artifacts[0].local_source.is_absolute())
+        source = config.artifacts[0].local_source
+        self.assertIsNotNone(source)
+        assert source is not None
+        self.assertTrue(source.is_absolute())
+        self.assertTrue(config.artifacts[1].local_sources[0].is_absolute())
         self.assertEqual(config.audio_output.name, "example.mp3")
         self.assertEqual(config.audio_output.parent.name, "build")
         self.assertEqual(config.manifest_output, config.output_dir / "manifest.json")

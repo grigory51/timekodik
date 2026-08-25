@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import click
+from tqdm import tqdm
 
 from .audio import (
     ffmpeg_inputs,
@@ -194,6 +195,7 @@ def transcribe(config: EpisodeConfig, force: bool) -> None:
 
     work_dir = ROOT / "build" / "stt"
     transcribe_cpp: Any = importlib.import_module("transcribe_cpp")
+    transcribe_cpp.set_log_callback(None)
     segments: list[TranscriptSegment] = []
     counters: dict[str, int] = {}
     raw_path = work_dir / "transcribe.raw.jsonl"
@@ -203,7 +205,7 @@ def transcribe(config: EpisodeConfig, force: bool) -> None:
             backend="metal",
         ) as model:
             with model.session() as session:
-                for index, chunk in enumerate(chunks, start=1):
+                for chunk in tqdm(chunks, desc="Транскрибация", unit="фрагмент"):
                     result = session.run(
                         load_pcm(chunk.path),
                         timestamps="none",
@@ -236,9 +238,6 @@ def transcribe(config: EpisodeConfig, force: bool) -> None:
                             text=text,
                         )
                     )
-                    if index % 100 == 0:
-                        click.echo(f"Распознано {index}/{len(chunks)} фрагментов")
-
     segments.sort(
         key=lambda segment: (
             segment.startSeconds,
@@ -417,9 +416,6 @@ def build_manifest(config: EpisodeConfig) -> None:
         shutil.rmtree(artifacts_dir)
     artifacts_dir.mkdir(parents=True)
     for artifact in config.artifacts:
-        require_file(artifact.local_source, f"Артефакт {artifact.id}")
-        filename = f"{artifact.id}{artifact.local_source.suffix}"
-        shutil.copy2(artifact.local_source, artifacts_dir / filename)
         common = {
             "id": artifact.id,
             "type": artifact.type,
@@ -427,7 +423,22 @@ def build_manifest(config: EpisodeConfig) -> None:
             "endSeconds": artifact.end_seconds,
             "title": artifact.title,
         }
-        artifacts.append({**common, "source": {"url": f"artifacts/{filename}"}})
+        if artifact.type == "gallery":
+            urls = []
+            for index, gallery_source in enumerate(artifact.local_sources, start=1):
+                require_file(gallery_source, f"Артефакт {artifact.id}")
+                filename = f"{artifact.id}-{index}{gallery_source.suffix.lower()}"
+                shutil.copy2(gallery_source, artifacts_dir / filename)
+                urls.append(f"artifacts/{filename}")
+            artifacts.append({**common, "source": {"urls": urls}})
+        else:
+            local_source = artifact.local_source
+            if local_source is None:
+                raise click.ClickException(f"Артефакт {artifact.id} не содержит файл")
+            require_file(local_source, f"Артефакт {artifact.id}")
+            filename = f"{artifact.id}{local_source.suffix}"
+            shutil.copy2(local_source, artifacts_dir / filename)
+            artifacts.append({**common, "source": {"url": f"artifacts/{filename}"}})
     manifest: dict[str, Any] = {
         "schemaVersion": 1,
         "speakers": speakers,
