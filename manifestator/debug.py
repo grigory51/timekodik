@@ -17,6 +17,7 @@ DebugStage = Literal[
     "mix",
     "transcribe",
     "clean-transcript",
+    "align-final-audio",
     "summarize",
     "build-manifest",
 ]
@@ -25,6 +26,7 @@ DEBUG_STAGES: tuple[tuple[DebugStage, str], ...] = (
     ("mix", "Сведение дорожек"),
     ("transcribe", "Распознавание речи"),
     ("clean-transcript", "Очистка транскрипта"),
+    ("align-final-audio", "Выравнивание по финальному аудио"),
     ("summarize", "Темы и таймкоды"),
     ("build-manifest", "Сборка manifest"),
 )

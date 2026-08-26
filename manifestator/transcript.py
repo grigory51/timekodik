@@ -13,7 +13,13 @@ from .models import (
     TranscriptDocument,
     TranscriptEdits,
     TranscriptSegment,
+    TranscribedDocument,
 )
+
+
+MAX_TRANSCRIPT_BLOCK_SECONDS = 20.0
+MAX_TRANSCRIPT_BLOCK_CHARACTERS = 360
+MAX_TRANSCRIPT_GAP_SECONDS = 1.5
 
 
 def format_timestamp(seconds: float) -> str:
@@ -42,6 +48,11 @@ def load_transcript(path: Path) -> TranscriptDocument:
     return TranscriptDocument.model_validate_json(path.read_text(encoding="utf-8"))
 
 
+def load_transcribed_document(path: Path) -> TranscribedDocument:
+    require_file(path, "Транскрипт")
+    return TranscribedDocument.model_validate_json(path.read_text(encoding="utf-8"))
+
+
 def trim_transcript(
     transcript: TranscriptDocument,
     start_seconds: float,
@@ -68,17 +79,33 @@ def trim_transcript(
     )
 
 
-def apply_transcript_edits(
+def apply_partial_transcript_edits(
     segments: list[TranscriptSegment],
     edits: TranscriptEdits,
 ) -> list[TranscriptSegment]:
-    if [segment.id for segment in segments] != [edit.id for edit in edits.segments]:
-        raise click.ClickException("Codex потерял или переставил сегменты транскрипта")
+    source_ids = {segment.id for segment in segments}
+    edit_ids = [edit.id for edit in edits.segments]
+    duplicates = sorted(
+        segment_id for segment_id in set(edit_ids) if edit_ids.count(segment_id) > 1
+    )
+    unknown = sorted(set(edit_ids) - source_ids)
+    if duplicates or unknown:
+        details = []
+        if unknown:
+            details.append(f"неизвестные: {', '.join(unknown)}")
+        if duplicates:
+            details.append(f"повторяющиеся: {', '.join(duplicates)}")
+        raise click.ClickException(
+            f"Codex вернул некорректные id ({'; '.join(details)})"
+        )
     if any(not edit.text.strip() for edit in edits.segments):
         raise click.ClickException("Codex вернул пустой текст сегмента")
+    replacements = {edit.id: edit.text.strip() for edit in edits.segments}
     return [
-        segment.model_copy(update={"text": edit.text.strip()})
-        for segment, edit in zip(segments, edits.segments, strict=True)
+        segment.model_copy(update={"text": replacements[segment.id]})
+        if segment.id in replacements
+        else segment
+        for segment in segments
     ]
 
 
@@ -101,7 +128,7 @@ def merge_sentence_fragments(
             pending = segment
             continue
 
-        sentence_end = re.search(r"[.!?…][»”\"')\]]*", segment.text)
+        sentence_end = re.search(r"(?<=\w)[.!?…][»”\"')\]]*", segment.text)
         if sentence_end is None:
             pending = pending.model_copy(
                 update={
@@ -139,7 +166,29 @@ def merge_sentence_fragments(
         )
     if pending:
         merged.append(pending)
-    return merged
+
+    grouped: list[TranscriptSegment] = []
+    for segment in merged:
+        previous = grouped[-1] if grouped else None
+        if (
+            previous is not None
+            and previous.speaker == segment.speaker
+            and segment.startSeconds - previous.endSeconds
+            <= MAX_TRANSCRIPT_GAP_SECONDS
+            and segment.endSeconds - previous.startSeconds
+            <= MAX_TRANSCRIPT_BLOCK_SECONDS
+            and len(previous.text) + len(segment.text) + 1
+            <= MAX_TRANSCRIPT_BLOCK_CHARACTERS
+        ):
+            grouped[-1] = previous.model_copy(
+                update={
+                    "endSeconds": segment.endSeconds,
+                    "text": f"{previous.text.rstrip()} {segment.text.lstrip()}",
+                }
+            )
+        else:
+            grouped.append(segment)
+    return grouped
 
 
 def load_chapters(config: EpisodeConfig) -> ChaptersDocument:

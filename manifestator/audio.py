@@ -9,8 +9,9 @@ from pathlib import Path
 from typing import Any
 
 import click
+from tqdm import tqdm
 
-from .common import ROOT, require_file, run
+from .common import CONSOLE, ROOT, require_file, run
 from .config import EpisodeConfig
 from .models import SpeechChunk
 
@@ -34,6 +35,7 @@ def ffprobe_duration(path: Path) -> float:
             str(path),
         ],
         capture=True,
+        announce=False,
     )
     return float(result.stdout.strip())
 
@@ -110,21 +112,23 @@ def parse_loudness(stderr: str) -> dict[str, str]:
 
 
 def detect_speech(path: Path, duration: float) -> list[tuple[float, float]]:
-    result = run(
-        [
-            "ffmpeg",
-            "-hide_banner",
-            "-nostats",
-            "-i",
-            str(path),
-            "-af",
-            "silencedetect=noise=-42dB:d=0.35",
-            "-f",
-            "null",
-            "-",
-        ],
-        capture=True,
-    )
+    with CONSOLE.status(f"Поиск речи: {path.name}", spinner="dots"):
+        result = run(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-nostats",
+                "-i",
+                str(path),
+                "-af",
+                "silencedetect=noise=-42dB:d=0.35",
+                "-f",
+                "null",
+                "-",
+            ],
+            capture=True,
+            announce=False,
+        )
     silence_starts = [float(value) for value in SILENCE_START_PATTERN.findall(result.stderr)]
     silence_ends = [float(value) for value in SILENCE_END_PATTERN.findall(result.stderr)]
     silences: list[tuple[float, float]] = []
@@ -170,6 +174,71 @@ def split_speech(
     return chunks
 
 
+def prepare_audio_chunks(
+    source: Path,
+    work_dir: Path,
+    speaker: str,
+    force: bool,
+    *,
+    start_seconds: float = 0,
+    timeline_offset: float = 0,
+) -> list[SpeechChunk]:
+    """Подготовить VAD-фрагменты одного аудиофайла для STT."""
+    require_file(source, "Дорожка")
+    duration = ffprobe_duration(source)
+    intervals = split_speech(
+        [
+            (max(start, start_seconds), end)
+            for start, end in detect_speech(source, duration)
+            if end > start_seconds
+        ]
+    )
+    work_dir.mkdir(parents=True, exist_ok=True)
+    chunks: list[SpeechChunk] = []
+    for index, (start, end) in enumerate(
+        tqdm(
+            intervals,
+            desc=f"Подготовка фрагментов: {speaker}",
+            unit="фрагмент",
+            dynamic_ncols=True,
+        )
+    ):
+        chunk_path = work_dir / f"{index:05d}-{round(start * 1000):010d}.wav"
+        if force or not chunk_path.is_file():
+            run(
+                [
+                    "ffmpeg",
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-y",
+                    "-ss",
+                    f"{start:.3f}",
+                    "-i",
+                    str(source),
+                    "-t",
+                    f"{end - start:.3f}",
+                    "-ar",
+                    "16000",
+                    "-ac",
+                    "1",
+                    "-c:a",
+                    "pcm_s16le",
+                    str(chunk_path),
+                ],
+                announce=False,
+            )
+        chunks.append(
+            SpeechChunk(
+                path=chunk_path.resolve(),
+                speaker=speaker,
+                startSeconds=start + timeline_offset,
+                endSeconds=end + timeline_offset,
+            )
+        )
+    return chunks
+
+
 def prepare_chunks(config: EpisodeConfig, force: bool) -> list[SpeechChunk]:
     work_dir = ROOT / "build" / "stt" / "chunks" / config.episode_id
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -178,53 +247,17 @@ def prepare_chunks(config: EpisodeConfig, force: bool) -> list[SpeechChunk]:
 
     for track in config.tracks:
         source = config.source_dir / track.file
-        require_file(source, "Дорожка")
-        duration = ffprobe_duration(source)
         content_start = max(0, config.content_start_seconds - offsets[track.file])
-        intervals = split_speech(
-            [
-                (max(start, content_start), end)
-                for start, end in detect_speech(source, duration)
-                if end > content_start
-            ]
-        )
-        speaker_dir = work_dir / track.speaker
-        speaker_dir.mkdir(parents=True, exist_ok=True)
-        for index, (start, end) in enumerate(intervals):
-            chunk_path = speaker_dir / f"{index:05d}-{round(start * 1000):010d}.wav"
-            if force or not chunk_path.is_file():
-                run(
-                    [
-                        "ffmpeg",
-                        "-hide_banner",
-                        "-loglevel",
-                        "error",
-                        "-y",
-                        "-ss",
-                        f"{start:.3f}",
-                        "-i",
-                        str(source),
-                        "-t",
-                        f"{end - start:.3f}",
-                        "-ar",
-                        "16000",
-                        "-ac",
-                        "1",
-                        "-c:a",
-                        "pcm_s16le",
-                        str(chunk_path),
-                    ],
-                    announce=False,
-                )
-            offset = offsets[track.file]
-            chunks.append(
-                SpeechChunk(
-                    path=chunk_path.resolve(),
-                    speaker=track.speaker,
-                    startSeconds=start + offset,
-                    endSeconds=end + offset,
-                )
+        chunks.extend(
+            prepare_audio_chunks(
+                source,
+                work_dir / track.speaker,
+                track.speaker,
+                force,
+                start_seconds=content_start,
+                timeline_offset=offsets[track.file],
             )
+        )
     return chunks
 
 

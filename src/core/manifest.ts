@@ -132,7 +132,15 @@ export function activeInterval<T extends { startSeconds: number; endSeconds: num
   values: T[],
   currentTime: number,
 ): T | undefined {
-  return values.find(
-    (value) => currentTime >= value.startSeconds && currentTime < value.endSeconds,
-  );
+  let active: T | undefined;
+  for (const value of values) {
+    if (
+      currentTime >= value.startSeconds &&
+      currentTime < value.endSeconds &&
+      (!active || value.startSeconds > active.startSeconds)
+    ) {
+      active = value;
+    }
+  }
+  return active;
 }

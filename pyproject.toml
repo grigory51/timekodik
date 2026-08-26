@@ -8,16 +8,25 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
   "click>=8.2,<9",
+  "faster-whisper>=1.2.1,<2; sys_platform != 'darwin' or platform_machine != 'arm64'",
+  "mlx-whisper>=0.4.3,<0.5; sys_platform == 'darwin' and platform_machine == 'arm64'",
+  "numpy>=2.0,<3",
   "pydantic>=2.11,<3",
+  "rich>=15,<16",
+  "textual>=8.2,<9",
   "tqdm>=4.67,<5",
   "transcribe-cpp @ https://github.com/handy-computer/transcribe.cpp/releases/download/v0.2.1/transcribe_cpp-0.2.1-py3-none-any.whl",
 ]
 
 [project.scripts]
 manifestator = "manifestator.cli:cli"
+manifestator-glossary = "manifestator.glossary_tui:glossary_cli"
 
 [tool.setuptools]
 packages = ["manifestator"]
+
+[tool.setuptools.package-data]
+manifestator = ["schemas/*.json"]
 
 [dependency-groups]
 dev = ["mypy>=1.17,<2", "types-tqdm>=4.67,<5"]

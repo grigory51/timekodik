@@ -7,6 +7,7 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 import click
+from tqdm import tqdm
 
 
 MODEL_FILENAME = "gigaam-v3-e2e-rnnt-Q8_0.gguf"
@@ -38,11 +39,17 @@ def ensure_transcription_model(path: Path) -> Path:
         with urlopen(MODEL_URL) as response, temporary.open("wb") as target:
             content_length = response.headers.get("Content-Length")
             total = int(content_length) if content_length else 0
-            with click.progressbar(length=total, label="Скачивание модели GigaAM") as bar:
+            with tqdm(
+                total=total or None,
+                desc="Скачивание GigaAM",
+                unit="B",
+                unit_scale=True,
+                dynamic_ncols=True,
+            ) as progress:
                 while chunk := response.read(1024 * 1024):
                     target.write(chunk)
                     digest.update(chunk)
-                    bar.update(len(chunk))
+                    progress.update(len(chunk))
     except (OSError, URLError) as error:
         temporary.unlink(missing_ok=True)
         raise click.ClickException(f"Не удалось скачать модель: {error}") from error

@@ -30,6 +30,15 @@ test("manifest intervals map to the active item", () => {
   assert.equal(activeInterval(parsed.artifacts, 40), undefined);
 });
 
+test("latest interval wins when transcript segments overlap", () => {
+  const segments = [
+    { id: "earlier", startSeconds: 106.67, endSeconds: 123.106 },
+    { id: "later", startSeconds: 117.282, endSeconds: 129.35 },
+  ];
+
+  assert.equal(activeInterval(segments, 119.52)?.id, "later");
+});
+
 test("invalid intervals are rejected", () => {
   assert.throws(
     () => parseManifest({ ...manifest, artifacts: [{ ...manifest.artifacts[0], endSeconds: 20 }] }),
@@ -61,7 +70,10 @@ test("gallery image URLs resolve relative to the manifest", () => {
         {
           ...manifest.artifacts[0],
           type: "gallery",
-          source: { urls: ["photos/one.jpg", "photos/two.jpg"] },
+          source: {
+            url: "photos/one.jpg",
+            urls: ["photos/one.jpg", "photos/two.jpg"],
+          },
         },
       ],
     }),
@@ -71,6 +83,10 @@ test("gallery image URLs resolve relative to the manifest", () => {
     "http://127.0.0.1:8000/episode/photos/one.jpg",
     "http://127.0.0.1:8000/episode/photos/two.jpg",
   ]);
+  assert.equal(
+    resolved.artifacts[0]?.source?.url,
+    "http://127.0.0.1:8000/episode/photos/one.jpg",
+  );
   assert.throws(
     () =>
       parseManifest({

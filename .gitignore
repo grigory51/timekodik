@@ -4,6 +4,7 @@ build/
 dist/
 output/
 episode.toml
+glossary.json
 /data/
 *.wav
 *.mp3

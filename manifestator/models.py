@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
 
 NonNegativeSeconds = Annotated[float, Field(ge=0)]
+GlossaryStatus = Literal["pending", "confirmed", "ignored"]
 
 
 class TranscriptSegment(BaseModel):
@@ -28,6 +29,24 @@ class TranscriptDocument(BaseModel):
     segments: list[TranscriptSegment]
 
 
+class TranscribedDocument(TranscriptDocument):
+    model: str
+
+
+class AlignmentAnchor(BaseModel):
+    sourceSeconds: NonNegativeSeconds
+    finalSeconds: NonNegativeSeconds
+    confidence: Annotated[float, Field(ge=0, le=1)]
+
+
+class AlignmentDocument(BaseModel):
+    episodeId: str
+    sourceDurationSeconds: NonNegativeSeconds
+    finalDurationSeconds: NonNegativeSeconds
+    anchors: list[AlignmentAnchor]
+    droppedSegmentIds: list[str]
+
+
 class TranscriptEdit(BaseModel):
     id: Annotated[str, Field(min_length=1)]
     text: Annotated[str, Field(min_length=1)]
@@ -37,7 +56,24 @@ class TranscriptEdits(BaseModel):
     segments: list[TranscriptEdit]
 
 
-class TranscriptEditsCheckpoint(TranscriptEdits):
+class GlossaryCandidate(BaseModel):
+    heard: Annotated[str, Field(min_length=1)]
+    suggested: Annotated[str, Field(min_length=1)]
+    preferred: str | None = None
+    status: GlossaryStatus = "pending"
+    segmentIds: list[str]
+    context: str
+
+
+class GlossaryDocument(BaseModel):
+    candidates: list[GlossaryCandidate]
+
+
+class TranscriptReview(TranscriptEdits):
+    glossaryCandidates: list[GlossaryCandidate] = Field(default_factory=list)
+
+
+class TranscriptEditsCheckpoint(TranscriptReview):
     inputHash: Annotated[str, Field(min_length=64, max_length=64)]
 
 
@@ -57,6 +93,7 @@ class Chapter(BaseModel):
 
 class ChaptersDocument(BaseModel):
     chapters: list[Chapter]
+    model: str | None = None
 
     @model_validator(mode="after")
     def validate_order(self) -> ChaptersDocument:

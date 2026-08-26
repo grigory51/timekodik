@@ -3,7 +3,8 @@ from __future__ import annotations
 import re
 import tomllib
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
+from urllib.parse import urlparse
 
 import click
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -56,6 +57,10 @@ class EpisodeConfig(BaseModel):
     content_start_seconds: NonNegativeSeconds = 0
     source_dir: Path
     transcription_model: Path = Field(default_factory=default_model_path)
+    secondary_transcription_model: str = "turbo"
+    codex_model: Annotated[str, Field(min_length=1)] = "gpt-5.6-luna"
+    codex_service_tier: Literal["fast"] | None = None
+    final_audio: str | None = None
     output_dir: Path
     tracks: list[TrackConfig]
     artifacts: list[ArtifactConfig] = []
@@ -73,11 +78,28 @@ class EpisodeConfig(BaseModel):
 
     @property
     def transcript_output(self) -> Path:
-        return ROOT / "build" / f"{self.episode_id}.transcript.json"
+        return (
+            ROOT
+            / "build"
+            / f"{self.episode_id}.transcript.{self.transcription_model.stem}.json"
+        )
 
     @property
     def transcript_markdown_output(self) -> Path:
         return ROOT / "build" / f"{self.episode_id}.transcript.md"
+
+    @property
+    def secondary_transcription_model_filename(self) -> str:
+        model = Path(self.secondary_transcription_model).name
+        return model if model.casefold().startswith("whisper-") else f"whisper-{model}"
+
+    @property
+    def whisper_transcript_output(self) -> Path:
+        return (
+            ROOT
+            / "build"
+            / f"{self.episode_id}.transcript.{self.secondary_transcription_model_filename}.json"
+        )
 
     @property
     def clean_transcript_output(self) -> Path:
@@ -88,6 +110,58 @@ class EpisodeConfig(BaseModel):
         return ROOT / "build" / f"{self.episode_id}.transcript.clean.md"
 
     @property
+    def final_transcript_output(self) -> Path:
+        return (
+            ROOT
+            / "build"
+            / f"{self.episode_id}.transcript.final.{self.transcription_model.stem}.json"
+        )
+
+    @property
+    def final_whisper_transcript_output(self) -> Path:
+        return (
+            ROOT
+            / "build"
+            / f"{self.episode_id}.transcript.final.{self.secondary_transcription_model_filename}.json"
+        )
+
+    @property
+    def final_clean_transcript_output(self) -> Path:
+        return ROOT / "build" / f"{self.episode_id}.transcript.final.clean.json"
+
+    @property
+    def final_clean_transcript_markdown_output(self) -> Path:
+        return ROOT / "build" / f"{self.episode_id}.transcript.final.clean.md"
+
+    @property
+    def glossary_output(self) -> Path:
+        return ROOT / "build" / f"{self.episode_id}.glossary.json"
+
+    @property
+    def glossary_corpus_output(self) -> Path:
+        return Path.cwd() / "glossary.json"
+
+    @property
+    def aligned_transcript_output(self) -> Path:
+        return ROOT / "build" / f"{self.episode_id}.transcript.aligned.json"
+
+    @property
+    def aligned_transcript_markdown_output(self) -> Path:
+        return ROOT / "build" / f"{self.episode_id}.transcript.aligned.md"
+
+    @property
+    def alignment_output(self) -> Path:
+        return ROOT / "build" / f"{self.episode_id}.alignment.json"
+
+    @property
+    def timeline_transcript_output(self) -> Path:
+        return (
+            self.aligned_transcript_output
+            if self.final_audio
+            else self.clean_transcript_output
+        )
+
+    @property
     def chapters_output(self) -> Path:
         return ROOT / "build" / f"{self.episode_id}.chapters.json"
 
@@ -95,10 +169,22 @@ class EpisodeConfig(BaseModel):
     def manifest_output(self) -> Path:
         return self.output_dir / "manifest.json"
 
+    @property
+    def process_lock(self) -> Path:
+        return ROOT / "build" / "locks" / f"{self.episode_id}.lock"
+
     def resolve_paths(self) -> EpisodeConfig:
         source_dir = self.source_dir.expanduser()
         transcription_model = self.transcription_model.expanduser()
         output_dir = self.output_dir.expanduser()
+        final_audio = self.final_audio
+        if final_audio and urlparse(final_audio).scheme not in {"http", "https"}:
+            final_audio_path = Path(final_audio).expanduser()
+            final_audio = str(
+                final_audio_path
+                if final_audio_path.is_absolute()
+                else ROOT / final_audio_path
+            )
         return self.model_copy(
             update={
                 "source_dir": (
@@ -112,6 +198,7 @@ class EpisodeConfig(BaseModel):
                 "output_dir": (
                     output_dir if output_dir.is_absolute() else ROOT / output_dir
                 ),
+                "final_audio": final_audio,
                 "artifacts": [
                     artifact.model_copy(
                         update={

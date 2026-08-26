@@ -2,6 +2,10 @@ episode_id = "example"
 content_start_seconds = 0.0
 source_dir = "/path/to/teamspeak-recording"
 output_dir = "output/example"
+# secondary_transcription_model = "turbo"
+# codex_model = "gpt-5.6-luna"
+# codex_service_tier = "fast"
+# final_audio = "https://cdn.example/podcast-final.mp3"
 
 [[tracks]]
 file = "capture.wav"
